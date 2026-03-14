@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Preview & Capture</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --panel-bg: #ffffff;
+            --border-color: #ddd;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --success-hover: #059669;
+            --text-main: #333;
+            --text-muted: #666;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: "Fira Code", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1400px;
+            height: calc(100vh - 40px);
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fafafa;
+        }
+
+        .panel-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .panel-body {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: #fff;
+        }
+
+        .btn-primary { background-color: var(--primary); }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: var(--success-hover); }
+
+        /* Input specific styles */
+        .file-upload-wrapper {
+            border: 2px dashed var(--border-color);
+            padding: 15px;
+            text-align: center;
+            border-radius: 6px;
+            background-color: #f9fafb;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 120px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        .file-item {
+            padding: 8px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            background-color: #f3f4f6;
+        }
+
+        .file-item:hover { background-color: #e5e7eb; }
+        .file-item.active {
+            background-color: var(--primary);
+            color: #fff;
+        }
+
+        textarea {
+            width: 100%;
+            flex-grow: 1;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            resize: none;
+            background-color: #f8f9fa;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+
+        /* Preview specific styles */
+        #previewContainer {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #fff;
+            position: relative;
+            /* Predictable container size for capturing */
+            min-height: 400px; 
+            display: flex;
+        }
+
+        #previewIframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background-color: #fff;
+        }
+
+        #previewText {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+            background-color: #282c34;
+            color: #abb2bf;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .panel {
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Input</h2>
+                <button class="btn-primary" id="btnUpdatePreview">Update Preview</button>
+            </div>
+            <div class="panel-body">
+                <div class="file-upload-wrapper">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Upload Local Files</label>
+                    <input type="file" id="fileInput" multiple accept=".html,.css,.js,.txt,.md,.json">
+                </div>
+                
+                <div class="file-list" id="fileList">
+                    <div style="padding: 10px; color: var(--text-muted); text-align: center; font-size: 0.9rem;">No files uploaded yet. Paste code below.</div>
+                </div>
+
+                <label style="font-weight: 600;">Code Editor</label>
+                <textarea id="codeInput" placeholder="Paste your HTML, CSS, JS, or TXT code here..."></textarea>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Preview</h2>
+                <button class="btn-success" id="btnCapture">Capture as PNG</button>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+                <div id="previewContainer">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let uploadedFiles = []; // Array of { name, extension, content }
+        let currentFileIndex = -1;
+        let currentMode = 'html'; // 'html' or 'text'
+
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const codeInput = document.getElementById('codeInput');
+        const btnUpdatePreview = document.getElementById('btnUpdatePreview');
+        const btnCapture = document.getElementById('btnCapture');
+        const previewContainer = document.getElementById('previewContainer');
+
+        // Initial setup
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set some default HTML to start with
+            codeInput.value = `<h1>Hello World</h1>\n<p>Paste your code on the left, or upload files.</p>\n<style>\n  h1 { color: #4f46e5; }\n</style>`;
+            renderPreview();
+        });
+
+        // 1. Handle File Uploads
+        fileInput.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            if (files.length === 0) return;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const content = await readFileAsText(file);
+                const extension = file.name.split('.').pop().toLowerCase();
+                
+                // Check if file already exists in our list, update if so
+                const existingIndex = uploadedFiles.findIndex(f => f.name === file.name);
+                if (existingIndex > -1) {
+                    uploadedFiles[existingIndex].content = content;
+                } else {
+                    uploadedFiles.push({ name: file.name, extension, content });
+                }
+            }
+            
+            updateFileListUI();
+            
+            // Automatically select the first uploaded file (prefer HTML if exists)
+            const htmlIndex = uploadedFiles.findIndex(f => f.extension === 'html');
+            selectFile(htmlIndex > -1 ? htmlIndex : 0);
+        });
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        // 2. UI Updates
+        function updateFileListUI() {
+            fileList.innerHTML = '';
+            if (uploadedFiles.length === 0) {
+                fileList.innerHTML = `<div style="padding: 10px; color: var(--text-muted); text-align: center; font-size: 0.9rem;">No files uploaded. Paste code below.</div>`;
+                return;
+            }
+
+            uploadedFiles.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = `file-item ${index === currentFileIndex ? 'active' : ''}`;
+                div.textContent = file.name;
+                div.onclick = () => selectFile(index);
+                fileList.appendChild(div);
+            });
+        }
+
+        function selectFile(index) {
+            currentFileIndex = index;
+            const file = uploadedFiles[index];
+            codeInput.value = file.content;
+            
+            // Determine mode based on extension
+            if (['html', 'htm'].includes(file.extension)) {
+                currentMode = 'html';
+            } else {
+                currentMode = 'text';
+            }
+            
+            updateFileListUI();
+            renderPreview();
+        }
+
+        // 3. Render Preview Logic
+        btnUpdatePreview.addEventListener('click', () => {
+            // If editing an uploaded file, update its content in the state array
+            if (currentFileIndex > -1 && uploadedFiles[currentFileIndex]) {
+                uploadedFiles[currentFileIndex].content = codeInput.value;
+            } else {
+                // If just pasting code without selecting a file, guess the mode
+                const val = codeInput.value.trim().toLowerCase();
+                currentMode = (val.startsWith('<') && val.includes('>')) ? 'html' : 'text';
+            }
+            renderPreview();
+        });
+
+        function renderPreview() {
+            previewContainer.innerHTML = ''; // Clear container
+
+            if (currentMode === 'html') {
+                const iframe = document.createElement('iframe');
+                iframe.id = 'previewIframe';
+                // Allow scripts but sandbox to prevent parent access
+                iframe.sandbox = "allow-scripts allow-same-origin";
+                
+                // Build combined HTML (Inject uploaded CSS/JS if applicable)
+                const finalHtml = buildCombinedHtml(codeInput.value);
+                
+                iframe.srcdoc = finalHtml;
+                previewContainer.appendChild(iframe);
+            } else {
+                // Text / Code preview
+                const pre = document.createElement('pre');
+                pre.id = 'previewText';
+                pre.textContent = codeInput.value;
+                previewContainer.appendChild(pre);
+            }
+        }
+
+        function buildCombinedHtml(baseHtml) {
+            let finalHtml = baseHtml;
+            
+            // Basic HTML wrapper if missing
+            if (!finalHtml.toLowerCase().includes('<html')) {
+                finalHtml = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n</head>\n<body>\n${finalHtml}\n</body>\n</html>`;
+            }
+
+            // Gather separate CSS and JS files
+            const cssFiles = uploadedFiles.filter(f => f.extension === 'css');
+            const jsFiles = uploadedFiles.filter(f => f.extension === 'js');
+
+            if (cssFiles.length > 0) {
+                const combinedCss = cssFiles.map(f => `/* ${f.name} */\n${f.content}`).join('\n\n');
+                const styleTag = `<style>\n${combinedCss}\n</style>\n</head>`;
+                if (finalHtml.includes('</head>')) {
+                    finalHtml = finalHtml.replace('</head>', styleTag);
+                }
+            }
+
+            if (jsFiles.length > 0) {
+                const combinedJs = jsFiles.map(f => `/* ${f.name} */\n${f.content}`).join('\n\n');
+                const scriptTag = `<script>\n${combinedJs}\n<\/script>\n</body>`;
+                if (finalHtml.includes('</body>')) {
+                    finalHtml = finalHtml.replace('</body>', scriptTag);
+                }
+            }
+
+            return finalHtml;
+        }
+
+        // 4. Capture & Export to PNG Logic
+        btnCapture.addEventListener('click', async () => {
+            const originalText = btnCapture.textContent;
+            btnCapture.textContent = "Capturing...";
+            btnCapture.disabled = true;
+
+            try {
+                let captureTarget;
+                let canvas;
+
+                if (currentMode === 'html') {
+                    // For iframes, html2canvas needs to target the document body inside the iframe
+                    const iframe = document.getElementById('previewIframe');
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    captureTarget = iframeDoc.body;
+                    
+                    // html2canvas config for iframe contents
+                    canvas = await html2canvas(captureTarget, {
+                        backgroundColor: '#ffffff',
+                        windowWidth: iframe.offsetWidth,
+                        windowHeight: iframe.offsetHeight,
+                        useCORS: true
+                    });
+                } else {
+                    // For text, just target the pre element
+                    captureTarget = document.getElementById('previewText');
+                    canvas = await html2canvas(captureTarget, {
+                        backgroundColor: '#282c34',
+                        useCORS: true
+                    });
+                }
+
+                downloadCanvas(canvas);
+            } catch (error) {
+                console.error("Screenshot capture failed:", error);
+                alert("Failed to capture screenshot. Check console for details.");
+            } finally {
+                btnCapture.textContent = originalText;
+                btnCapture.disabled = false;
+            }
+        });
+
+        function downloadCanvas(canvas) {
+            // Generate Filename: preview-[filename]-[yyyy-mm-dd-hhmm].png
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            const timestamp = `${yyyy}-${mm}-${dd}-${hh}${mins}`;
+            
+            let baseName = "pasted-code";
+            if (currentFileIndex > -1 && uploadedFiles[currentFileIndex]) {
+                // remove extension
+                baseName = uploadedFiles[currentFileIndex].name.split('.').slice(0, -1).join('.') || uploadedFiles[currentFileIndex].name; 
+            }
+
+            const fileName = `preview-${baseName}-${timestamp}.png`;
+
+            // Create download link
+            const link = document.createElement('a');
+            link.download = fileName;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
