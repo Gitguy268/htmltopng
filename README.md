@@ -26,3 +26,13 @@ Clone the repository:
 ```bash
 git clone https://github.com/Gitguy268/htmltopng.git
 cd htmltopng
+```
+
+### Tests
+
+`tests/capture.mjs` checks the capture in a real browser: the preview's scripts can't reach the tool page, outside fonts and images don't stop a capture, and a reply that isn't a PNG is refused. It needs internet and Playwright:
+
+```bash
+npm i playwright
+node tests/capture.mjs
+```
