@@ -4,6 +4,10 @@
 htmltopng is a simple tool that converts an `.html` file into a `.png` image.  
 It’s useful for generating static previews of web pages, documentation, emails, or UI mockups without needing a browser screenshot.
 
+<!-- live-links -->
+**Live:** [gitguy268.github.io/htmltopng](https://gitguy268.github.io/htmltopng/) · [htmltopngconverter.vercel.app](https://htmltopngconverter.vercel.app)
+<!-- /live-links -->
+
 <!-- run-steps:start -->
 ## Run it locally, step by step
 
